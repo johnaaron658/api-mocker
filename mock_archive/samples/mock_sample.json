@@ -1,0 +1,8 @@
+{
+    "port" : 9090,
+    "name" : "mock_sample",
+    "path" : "/path",
+    "payload" : {
+        "message" : "hello world!"
+    }
+}
