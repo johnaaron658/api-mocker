@@ -49,14 +49,3 @@ function startMock(mockConfig) {
     server.listen(mockConfig.port);
     console.log("started '" + mockConfig.name + "' at http://localhost:" + mockConfig.port + "/");
 }
-
-function payloadmapper(payload) {
-    let object = {};
-    payload.map(configCap => configCap.configsSupported)
-           .map(supported => supported.forEach(cap => {
-                if (cap.supportsTudr) {
-                    object[cap.config] = 1;
-                }
-           }));
-    console.log(JSON.stringify(object));
-}
