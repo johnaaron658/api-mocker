@@ -3,9 +3,11 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const bodyParser = require('body-parser');
+const parser = require('./lib/parser');
 
 const mocksDir = path.join(__dirname, 'mocks', '\\');
 console.log("mockdir: " + mocksDir);
+
 
 fs.readdir(mocksDir, function (err, fileNames) {
     if (err) {
@@ -19,33 +21,73 @@ fs.readdir(mocksDir, function (err, fileNames) {
                 console.log("error in reading file: " + fileName);
                 return;
             }
-            let mockConfig = JSON.parse(content);
+            let mockConfig = parser.parse(content);
             mockConfig.name = fileName.split(".")[0];
-            startMock(mockConfig);
+            startMocks(mockConfig);
         })
     });
 });
 
-function startMock(mockConfig) {    
+function startMocks(mockConfig) {    
     let app = express();
 
-    let path = mockConfig.path;
-    if (path == null) {
-        path = '/';
-    }
-
-    app.use(bodyParser.json());
-
-    app.use(path, (req, res, next) => {
-        console.log("request on port: " + mockConfig.port);
-        console.log("request header: " + JSON.stringify(req.headers));
-        console.log("request body: " + JSON.stringify(req.body));
-        res.status(200);
-        res.setHeader('content-type', 'application/json');
-        res.send(mockConfig.payload);
-    });
+    setMocks(mockConfig.paths, app);
 
     let server = http.createServer(app);
     server.listen(mockConfig.port);
     console.log("started '" + mockConfig.name + "' at http://localhost:" + mockConfig.port + "/");
+}
+
+function setMocks(paths, app) {
+    paths.forEach((mockPath) => {
+        let path = mockPath.path;
+        if (path == null) {
+            path = '/';
+        }
+        const getResponse = setReqResMap(mockPath.mocks);
+        app.use(bodyParser.json());
+
+        app.use(path, (req, res, next) => {
+            response = getResponse(req);          
+            console.log("request header: " + parser.stringify(req.headers));
+            console.log("request body: " + parser.stringify(req.body));
+            res.status(response.status);
+            res.setHeader('content-type', 'application/json');
+            res.send(response.payload);
+        });
+    })
+}
+
+function setReqResMap(mocks) {
+    return (req) => {
+        const matchingMock = mocks.find(mock => isProjectionMatch(mock.request, req));
+        if (!matchingMock) {
+            return {
+                payload: {
+                    message: 'No mock found'
+                },
+                status: 500
+            }
+        }
+        return matchingMock.response;
+    }
+}
+
+function isProjectionMatch(refObj, targetObj) {
+    const projection = project(refObj, targetObj);
+    return parser.stringify(refObj) === parser.stringify(projection);
+}
+
+function project(refObj, targetObj) {
+    const projection = {};
+    for (key in refObj) {
+        if (key in targetObj && targetObj[key]) {
+            if (typeof refObj[key] === 'object') {
+                projection[key] = project(refObj[key], targetObj[key]);
+            } else {
+                projection[key] = targetObj[key];
+            }
+        }
+    }
+    return projection;
 }

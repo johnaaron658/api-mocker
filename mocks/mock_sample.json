@@ -1,8 +1,66 @@
 {
     "port" : 9090,
-    "name" : "mock_sample",
-    "path" : "/path",
-    "payload" : {
-        "message" : "hello world!"
-    }
+    "paths" : [
+        {
+            "path": "/path",
+            "mocks": [
+                {
+                    "request": {
+                        "headers": {
+                            "x-api-key": "key"
+                        },
+                        "body": {
+                            "yo": "you"
+                        }
+                    },
+                    "response": {
+                        "payload": {
+                            "message": "hello world1"
+                        },
+                        "status": 200 
+                    } 
+
+                },
+                {
+                    "request": {
+                        "headers": {
+                            "x-api-key": "key"
+                        },
+                        "body": {
+                            "yo": "me"
+                        }
+                    },
+                    "response": {
+                        "payload": {
+                            "message": "hello world2"
+                        },
+                        "status": 404 
+                    }
+                }
+            ]
+        },
+        {
+            "path": "/path2",
+            "mocks": [
+                {
+                    "request": {
+                        "headers": {
+                            "x-api-key": "key"
+                        },
+                        "body": {
+                            "yo": "something",
+                            "yo2": "something"
+                        }
+                    },
+                    "response": {
+                        "payload": {
+                            "message": "hello world3",
+                            "message2": "shubidu"
+                        },
+                        "status": 200 
+                    }
+                }
+            ]
+        }
+    ]
 }

@@ -3,6 +3,6 @@
     "name" : "mock_sample",
     "path" : "/path2",
     "payload" : {
-        "message" : "hello world2!"
+        "message" : "This mock format is deprecated."
     }
 }
