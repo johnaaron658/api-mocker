@@ -6,35 +6,47 @@ const bodyParser = require('body-parser');
 const parser = require('./lib/parser');
 
 const mocksDir = path.join(__dirname, 'mocks', '\\');
-console.log("mockdir: " + mocksDir);
-
+const mockServerMap = {}; 
 
 fs.readdir(mocksDir, function (err, fileNames) {
     if (err) {
         console.log("error in reading directory: " + fileNames);
         return;
     }
-    fileNames.forEach((fileName) => {
-        console.log(fileName);
-        fs.readFile(mocksDir + fileName, 'utf-8', (err, content) => {
-            if (err) {
-                console.log("error in reading file: " + fileName);
-                return;
-            }
-            let mockConfig = parser.parse(content);
-            mockConfig.name = fileName.split(".")[0];
-            startMocks(mockConfig);
-        })
-    });
+    fileNames.forEach(startMocksFromFile);
 });
+
+fs.watch(mocksDir, {encoding: 'utf-8'}, (event, fileName) => {
+    startMocksFromFile(fileName);
+})
+
+function startMocksFromFile(fileName) {
+    console.log(fileName);
+    fs.readFile(mocksDir + fileName, 'utf-8', (err, content) => {
+        if (err) {
+            console.log("error in reading file: " + fileName);
+            return;
+        }
+        let mockConfig = parser.parse(content);
+        mockConfig.name = fileName.split(".")[0];
+        startMocks(mockConfig);
+    })
+} 
 
 function startMocks(mockConfig) {    
     let app = express();
 
     setMocks(mockConfig.paths, app);
+    
+    const server = http.createServer(app);
 
-    let server = http.createServer(app);
+    if (mockServerMap[mockConfig.name]) {
+        mockServerMap[mockConfig.name].close();
+    } 
+
     server.listen(mockConfig.port);
+    mockServerMap[mockConfig.name] = server;
+
     console.log("started '" + mockConfig.name + "' at http://localhost:" + mockConfig.port + "/");
 }
 
