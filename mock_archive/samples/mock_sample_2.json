@@ -1,8 +1,0 @@
-{
-    "port" : 9091,
-    "name" : "mock_sample",
-    "path" : "/path2",
-    "payload" : {
-        "message" : "This mock format is deprecated."
-    }
-}
