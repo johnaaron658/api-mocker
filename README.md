@@ -51,3 +51,7 @@ An **API Mock File** is meant to mock a single microservice. A service can have 
         - **response** - the response to be sent for a request that matches.
             - **payload** - the response body
             - **status** - the response status
+
+## Planned Features
+- URI Parameterization Support
+- Mock User Interface
