@@ -1,37 +1,65 @@
 const http = require('http');
 const express = require('express');
-const fs = require('fs');
+const fs = require('fs').promises;
+const fswatch = require('fs');
 const path = require('path');
 const bodyParser = require('body-parser');
 const parser = require('./lib/parser');
 
 const mocksDir = path.join(__dirname, 'mocks', '\\');
-const mockServerMap = {}; 
+const portMockMap = {};
+const portServerMap = {}; 
+let refreshing = false;
 
-fs.readdir(mocksDir, function (err, fileNames) {
-    if (err) {
-        console.log("error in reading directory: " + fileNames);
-        return;
+fswatch.watch(mocksDir, {encoding: 'utf-8'}, (event, fileName) => {
+    if (!refreshing) {
+        refresh();
     }
-    fileNames.forEach(startMocksFromFile);
 });
 
-fs.watch(mocksDir, {encoding: 'utf-8'}, (event, fileName) => {
-    startMocksFromFile(fileName);
-})
-
-function startMocksFromFile(fileName) {
-    console.log(fileName);
-    fs.readFile(mocksDir + fileName, 'utf-8', (err, content) => {
+function refresh() {
+    refreshing = true;
+    clearPortMap();
+    closeServers();
+    fswatch.readdir(mocksDir, async (err, fileNames) => {
         if (err) {
-            console.log("error in reading file: " + fileName);
+            console.log("error in reading directory: " + fileNames);
             return;
         }
-        let mockConfig = parser.parse(content);
-        mockConfig.name = fileName.split(".")[0];
-        startMocks(mockConfig);
-    })
+        for (const fileName of fileNames) {
+            await initializePortMockMap(fileName);
+        }
+        startAllMocks();
+        refreshing = false;
+    });
+}
+
+function clearPortMap() {
+    for (port in portMockMap) delete portMockMap[port];
+}
+
+function closeServers() {
+    for (port in portServerMap) portServerMap[port].close();
+}
+
+async function initializePortMockMap(fileName) {
+    console.log(fileName);
+    const content = await fs.readFile(mocksDir + fileName, 'utf-8');
+    let mockConfig = parser.parse(content);
+    mockConfig.name = fileName.split(".")[0];
+    if (portMockMap[mockConfig.port]) {
+        portMockMap[mockConfig.port].name += " " + mockConfig.name;
+        portMockMap[mockConfig.port].paths = portMockMap[mockConfig.port].paths.concat(mockConfig.paths);
+    } else {
+        portMockMap[mockConfig.port] = mockConfig;
+    }
 } 
+
+function startAllMocks() {
+    for (port in portMockMap) {
+        startMocks(portMockMap[port]);
+    }
+}
 
 function startMocks(mockConfig) {    
     let app = express();
@@ -40,12 +68,12 @@ function startMocks(mockConfig) {
     
     const server = http.createServer(app);
 
-    if (mockServerMap[mockConfig.name]) {
-        mockServerMap[mockConfig.name].close();
+    if (portServerMap[mockConfig.port]) {
+        portServerMap[mockConfig.port].close();
     } 
 
     server.listen(mockConfig.port);
-    mockServerMap[mockConfig.name] = server;
+    portServerMap[mockConfig.port] = server;
 
     console.log("started '" + mockConfig.name + "' at http://localhost:" + mockConfig.port + "/");
 }
@@ -103,3 +131,5 @@ function project(refObj, targetObj) {
     }
     return projection;
 }
+
+refresh();
