@@ -4,7 +4,9 @@ const fs = require('fs').promises;
 const fswatch = require('fs');
 const path = require('path');
 const bodyParser = require('body-parser');
+
 const parser = require('./lib/parser');
+const criteria = require('./lib/matchers').criteria;
 
 const mocksDir = path.join(__dirname, 'mocks', '\\');
 const portMockMap = {};
@@ -100,7 +102,7 @@ function setMocks(paths, app) {
 
 function setReqResMap(mocks) {
     return (req) => {
-        const matchingMock = mocks.find(mock => isProjectionMatch(mock.request, req));
+        const matchingMock = getMatchingMock(mocks, req);
         if (!matchingMock) {
             return {
                 payload: {
@@ -113,23 +115,14 @@ function setReqResMap(mocks) {
     }
 }
 
-function isProjectionMatch(refObj, targetObj) {
-    const projection = project(refObj, targetObj);
-    return parser.stringify(refObj) === parser.stringify(projection);
+function getMatchingMock(mocks, req) {
+    const mockScores = mocks.map(mock => ({score: 0, mock: mock}));
+    for (getCriteriumScore of criteria) {
+        mockScores.forEach(mockScore => mockScore.score += getCriteriumScore(mockScore.mock, req))
+    }
+    const maxScoreMock = mockScores.reduce((max, mockScore) => mockScore.score > max.score ? mockScore : max);
+    return maxScoreMock.score === 0 ? null : maxScoreMock.mock;
 }
 
-function project(refObj, targetObj) {
-    const projection = {};
-    for (key in refObj) {
-        if (key in targetObj && targetObj[key]) {
-            if (typeof refObj[key] === 'object') {
-                projection[key] = project(refObj[key], targetObj[key]);
-            } else {
-                projection[key] = targetObj[key];
-            }
-        }
-    }
-    return projection;
-}
 
 refresh();
