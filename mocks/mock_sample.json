@@ -2,20 +2,41 @@
     "port" : 9090,
     "paths" : [
         {
-            "path": "/path",
+            "path": "/path/:someParam/:someOtherParam",
             "mocks": [
                 {
-                    "request": {
-                        "headers": {
-                            "x-api-key": "key"
-                        },
-                        "body": {
-                            "yo": "you"
-                        }
+                    "params": {
+                        "someParam": "hello4"
                     },
                     "response": {
                         "payload": {
                             "message": "hello world1"
+                        },
+                        "status": 200 
+                    } 
+
+                },
+                {
+                    "params": {
+                        "someParam": "hello4",
+                        "someOtherParam": "hello6"
+                    },
+                    "response": {
+                        "payload": {
+                            "message": "hello world3"
+                        },
+                        "status": 200 
+                    } 
+
+                },
+                {
+                    "params": {
+                        "someParam": "hello4",
+                        "someOtherParam": "hello5"
+                    },
+                    "response": {
+                        "payload": {
+                            "message": "hello world2"
                         },
                         "status": 200 
                     } 
@@ -27,7 +48,7 @@
                             "x-api-key": "key"
                         },
                         "body": {
-                            "yo": "me"
+                            "foo1": "bar1"
                         }
                     },
                     "response": {
@@ -48,8 +69,8 @@
                             "x-api-key": "key"
                         },
                         "body": {
-                            "yo": "something",
-                            "yo2": "something"
+                            "foo2": "bar2",
+                            "foo3": "bar3"
                         }
                     },
                     "response": {
