@@ -10,7 +10,7 @@ npm start
 ```
 
 ## API Mock Format
-An **API Mock File** is meant to mock a single microservice. A service can have multiple endpoints (**paths**). Each of these endpoints/paths, in turn, can have multiple request-response mappings (**mocks**).
+An **API Mock File** is meant to mock a microservice. A service can have multiple endpoints (**paths**). Each of these endpoints/paths, in turn, can have multiple request-response mappings (**mocks**).
 ```javascript
 {
     "port" : 9090,
@@ -53,5 +53,5 @@ An **API Mock File** is meant to mock a single microservice. A service can have 
             - **status** - the response status
 
 ## Planned Features
-- URI Parameterization Support
+- Custom Handling with External Files
 - Mock User Interface
