@@ -10,16 +10,20 @@ import { parse, stringify } from './lib/parser.js';
 import { criteria } from './lib/matchers.js';
 import { modulePath } from './lib/utils/module-utils.js';
 
+const mocksDir = 'mocks';
+const customScriptsDir = 'customscripts';
+const downloadsDir = 'downloads';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const mocksDir = join(__dirname, 'mocks', '\\');
+const __mocksDir = join(__dirname, mocksDir, '\\');
 
 const { json } = pkg;
 const portMockMap = {};
 const portServerMap = {}; 
 let refreshing = false;
 
-watch(mocksDir, {encoding: 'utf-8'}, (event, fileName) => {
+watch(__mocksDir, {encoding: 'utf-8'}, (event, fileName) => {
     if (!refreshing) {
         refresh();
     }
@@ -29,7 +33,7 @@ function refresh() {
     refreshing = true;
     clearPortMap();
     closeServers();
-    readdir(mocksDir, async (err, fileNames) => {
+    readdir(__mocksDir, async (err, fileNames) => {
         if (err) {
             console.log("error in reading directory: " + fileNames);
             return;
@@ -53,7 +57,7 @@ function closeServers() {
 async function initializePortMockMap(fileName) {
     console.log(fileName);
     try {
-        const content = await fs.readFile(mocksDir + fileName, 'utf-8');
+        const content = await fs.readFile(__mocksDir + fileName, 'utf-8');
         let mockConfig = parse(content);
         mockConfig.name = fileName.split(".")[0];
         if (portMockMap[mockConfig.port]) {
@@ -104,12 +108,17 @@ function setMocks(paths, app) {
             console.log("request header: " + stringify(req.headers));
             console.log("request body: " + stringify(req.body));
             
-            // for custom logic
-            if (response.custom) {
-                const module = modulePath('.', 'mocks', 'customscripts', response.custom) + '.js';
+            
+            if (response.custom) { 
+                // for custom logic
+                const module = modulePath('.', mocksDir, customScriptsDir, response.custom) + '.js';
                 console.log(module);
                 const { run } = await import(module);
                 run(req, res, next);
+            } else if (response.downloads) {
+                // for file downloads
+                const file = join(__dirname, mocksDir, downloadsDir, response.downloads);
+                res.download(file);
             } else {
                 res.status(response.status);
                 res.setHeader('content-type', 'application/json');

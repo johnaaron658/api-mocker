@@ -22,10 +22,7 @@
                         "someOtherParam": "hello6"
                     },
                     "response": {
-                        "payload": {
-                            "message": "hello world3"
-                        },
-                        "status": 200 
+                        "downloads": "sample_download_photo.jpg" 
                     } 
 
                 },
