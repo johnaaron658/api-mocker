@@ -1,13 +1,14 @@
 import { createServer } from 'http';
-import express from 'express';
 import { promises as fs } from 'fs';
 import { watch, readdir } from 'fs';
 import { fileURLToPath } from 'url';
 import { join, dirname } from 'path';
+import express from 'express';
 import pkg from 'body-parser';
 
 import { parse, stringify } from './lib/parser.js';
 import { criteria } from './lib/matchers.js';
+import { modulePath } from './lib/utils/module-utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -51,14 +52,18 @@ function closeServers() {
 
 async function initializePortMockMap(fileName) {
     console.log(fileName);
-    const content = await fs.readFile(mocksDir + fileName, 'utf-8');
-    let mockConfig = parse(content);
-    mockConfig.name = fileName.split(".")[0];
-    if (portMockMap[mockConfig.port]) {
-        portMockMap[mockConfig.port].name += " " + mockConfig.name;
-        portMockMap[mockConfig.port].paths = portMockMap[mockConfig.port].paths.concat(mockConfig.paths);
-    } else {
-        portMockMap[mockConfig.port] = mockConfig;
+    try {
+        const content = await fs.readFile(mocksDir + fileName, 'utf-8');
+        let mockConfig = parse(content);
+        mockConfig.name = fileName.split(".")[0];
+        if (portMockMap[mockConfig.port]) {
+            portMockMap[mockConfig.port].name += " " + mockConfig.name;
+            portMockMap[mockConfig.port].paths = portMockMap[mockConfig.port].paths.concat(mockConfig.paths);
+        } else {
+            portMockMap[mockConfig.port] = mockConfig;
+        }
+    } catch {
+        console.log(fileName + " is a folder");
     }
 } 
 
@@ -94,13 +99,22 @@ function setMocks(paths, app) {
         const getResponse = setReqResMap(mockPath.mocks);
         app.use(json());
 
-        app.use(path, (req, res, next) => {
+        app.use(path, async (req, res, next) => {
             const response = getResponse(req);          
             console.log("request header: " + stringify(req.headers));
             console.log("request body: " + stringify(req.body));
-            res.status(response.status);
-            res.setHeader('content-type', 'application/json');
-            res.send(response.payload);
+            
+            // for custom logic
+            if (response.custom) {
+                const module = modulePath('.', 'mocks', 'customscripts', response.custom) + '.js';
+                console.log(module);
+                const { run } = await import(module);
+                run(req, res, next);
+            } else {
+                res.status(response.status);
+                res.setHeader('content-type', 'application/json');
+                res.send(response.payload);
+            }
         });
     })
 }

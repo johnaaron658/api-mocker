@@ -35,10 +35,7 @@
                         "someOtherParam": "hello5"
                     },
                     "response": {
-                        "payload": {
-                            "message": "hello world2"
-                        },
-                        "status": 200 
+                        "custom" : "custom-mock-script"
                     } 
 
                 },
