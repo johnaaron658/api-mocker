@@ -1,19 +1,27 @@
-const http = require('http');
-const express = require('express');
+const createServer = require('http').createServer;
 const fs = require('fs').promises;
-const fswatch = require('fs');
-const path = require('path');
-const bodyParser = require('body-parser');
+const { watch, readdir }= require('fs'); 
+const fileURLToPath = require('url');
+const { join, dirname } = require('path');
+const express = require('express');
+const pkg = require('body-parser');
 
-const parser = require('./lib/parser');
-const criteria = require('./lib/matchers').criteria;
+const { parse, stringify } = require('./lib/parser.js');
+const { criteria } = require('./lib/matchers.js');
+const { modulePath } = require('./lib/utils/module-utils.js');
 
-const mocksDir = path.join(__dirname, 'mocks', '\\');
+const mocksDir = 'mocks';
+const customScriptsDir = 'customscripts';
+const downloadsDir = 'downloads';
+
+const __mocksDir = join(__dirname, mocksDir, process.platform == 'win32' ? '\\' : '/');
+
+const { json } = pkg;
 const portMockMap = {};
 const portServerMap = {}; 
 let refreshing = false;
 
-fswatch.watch(mocksDir, {encoding: 'utf-8'}, (event, fileName) => {
+watch(__mocksDir, {encoding: 'utf-8'}, (event, fileName) => {
     if (!refreshing) {
         refresh();
     }
@@ -23,7 +31,7 @@ function refresh() {
     refreshing = true;
     clearPortMap();
     closeServers();
-    fswatch.readdir(mocksDir, async (err, fileNames) => {
+    readdir(__mocksDir, async (err, fileNames) => {
         if (err) {
             console.log("error in reading directory: " + fileNames);
             return;
@@ -37,28 +45,32 @@ function refresh() {
 }
 
 function clearPortMap() {
-    for (port in portMockMap) delete portMockMap[port];
+    for (const port in portMockMap) delete portMockMap[port];
 }
 
 function closeServers() {
-    for (port in portServerMap) portServerMap[port].close();
+    for (const port in portServerMap) portServerMap[port].close();
 }
 
 async function initializePortMockMap(fileName) {
     console.log(fileName);
-    const content = await fs.readFile(mocksDir + fileName, 'utf-8');
-    let mockConfig = parser.parse(content);
-    mockConfig.name = fileName.split(".")[0];
-    if (portMockMap[mockConfig.port]) {
-        portMockMap[mockConfig.port].name += " " + mockConfig.name;
-        portMockMap[mockConfig.port].paths = portMockMap[mockConfig.port].paths.concat(mockConfig.paths);
-    } else {
-        portMockMap[mockConfig.port] = mockConfig;
+    try {
+        const content = await fs.readFile(__mocksDir + fileName, 'utf-8');
+        let mockConfig = parse(content);
+        mockConfig.name = fileName.split(".")[0];
+        if (portMockMap[mockConfig.port]) {
+            portMockMap[mockConfig.port].name += " " + mockConfig.name;
+            portMockMap[mockConfig.port].paths = portMockMap[mockConfig.port].paths.concat(mockConfig.paths);
+        } else {
+            portMockMap[mockConfig.port] = mockConfig;
+        }
+    } catch {
+        console.log(fileName + " is a folder");
     }
 } 
 
 function startAllMocks() {
-    for (port in portMockMap) {
+    for (const port in portMockMap) {
         startMocks(portMockMap[port]);
     }
 }
@@ -68,7 +80,7 @@ function startMocks(mockConfig) {
 
     setMocks(mockConfig.paths, app);
     
-    const server = http.createServer(app);
+    const server = createServer(app);
 
     if (portServerMap[mockConfig.port]) {
         portServerMap[mockConfig.port].close();
@@ -87,15 +99,29 @@ function setMocks(paths, app) {
             path = '/';
         }
         const getResponse = setReqResMap(mockPath.mocks);
-        app.use(bodyParser.json());
+        app.use(json());
 
-        app.use(path, (req, res, next) => {
-            response = getResponse(req);          
-            console.log("request header: " + parser.stringify(req.headers));
-            console.log("request body: " + parser.stringify(req.body));
-            res.status(response.status);
-            res.setHeader('content-type', 'application/json');
-            res.send(response.payload);
+        app.use(path, async (req, res, next) => {
+            const response = getResponse(req);          
+            console.log("request header: " + stringify(req.headers));
+            console.log("request body: " + stringify(req.body));
+            
+            
+            if (response.custom) { 
+                // for custom logic
+                const module = modulePath('.', mocksDir, customScriptsDir, response.custom) + '.js';
+                console.log(module);
+                const { run } = require(module);
+                run(req, res, next);
+            } else if (response.downloads) {
+                // for file downloads
+                const file = join(__dirname, mocksDir, downloadsDir, response.downloads);
+                res.download(file);
+            } else {
+                res.status(response.status);
+                res.setHeader('content-type', 'application/json');
+                res.send(response.payload);
+            }
         });
     })
 }
@@ -117,7 +143,7 @@ function setReqResMap(mocks) {
 
 function getMatchingMock(mocks, req) {
     const mockScores = mocks.map(mock => ({score: 0, mock: mock}));
-    for (getCriteriumScore of criteria) {
+    for (const getCriteriumScore of criteria) {
         mockScores.forEach(mockScore => mockScore.score += getCriteriumScore(mockScore.mock, req))
     }
     const maxScoreMock = mockScores.reduce((max, mockScore) => mockScore.score > max.score ? mockScore : max);

@@ -22,10 +22,7 @@
                         "someOtherParam": "hello6"
                     },
                     "response": {
-                        "payload": {
-                            "message": "hello world3"
-                        },
-                        "status": 200 
+                        "downloads": "sample_download_photo.jpg" 
                     } 
 
                 },
@@ -35,10 +32,7 @@
                         "someOtherParam": "hello5"
                     },
                     "response": {
-                        "payload": {
-                            "message": "hello world2"
-                        },
-                        "status": 200 
+                        "custom" : "custom-mock-script"
                     } 
 
                 },
@@ -53,7 +47,7 @@
                     },
                     "response": {
                         "payload": {
-                            "message": "hello world2"
+                            "message": "hello world4"
                         },
                         "status": 404 
                     }
